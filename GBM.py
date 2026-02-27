@@ -84,19 +84,19 @@ st.markdown("""
 @st.cache_resource
 def load_assets():
     try:
-        with open('momics_xgb_model-1 (1).pkl', 'rb') as f:
+        with open('momics_xgb_model (1).pkl', 'rb') as f:
             model = pickle.load(f)
 
-        with open('imputer-1 (1).pkl', 'rb') as f:
+        with open('imputer (1).pkl', 'rb') as f:
             imputer = pickle.load(f)
         # Patch sklearn version mismatch: 1.6.1 used _fill_dtype, newer versions use _fit_dtype
         if not hasattr(imputer, '_fill_dtype') and hasattr(imputer, '_fit_dtype'):
             imputer._fill_dtype = imputer._fit_dtype
 
-        with open('scaler-1 (1).pkl', 'rb') as f:
+        with open('scaler (1).pkl', 'rb') as f:
             scaler = pickle.load(f)
 
-        with open('feature_list-1.pkl (1)', 'rb') as f:
+        with open('feature_list (1).pkl', 'rb') as f:
             feature_list = pickle.load(f)
 
         # Feature names expected by the XGBoost model (100 selected features)
@@ -1632,3 +1632,4 @@ elif page == "Demo Walkthrough":
         for key in keys_to_clear:
             del st.session_state[key]
         st.rerun()
+
