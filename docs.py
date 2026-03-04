@@ -253,108 +253,103 @@ initial state without requiring a browser refresh.
 """
 
 MODEL_ARCH = """
-### Machine Learning Model
-
-**Algorithm: XGBoost (Extreme Gradient Boosting)**
-
-MOmics uses an XGBoost binary classifier (XGBClassifier, version 2.0.3) as its core predictive
-engine. XGBoost builds an ensemble of decision trees in a sequential, gradient-boosted fashion — each
-tree is trained to correct the residual errors of the previous ensemble, and the final prediction is
-the sum of contributions from all trees, passed through a logistic function to produce a probability
-between 0 and 1. XGBoost was selected over Random Forest and Support Vector Machines because it
-explicitly learns optimal directions for missing values during tree construction. This capability makes
-it well suited to sparse multi-omics data where not all features are measured for every patient.
-XGBoost also incorporates both L1 (Lasso) and L2 (Ridge) regularization terms in its objective
-function, which mitigates overfitting in datasets with high feature dimensionality and low sample
-sizes — a common challenge in clinical omics studies.
+The MOmics predictive model was developed entirely within Python (Google Colab, version 3.10.12).
+Data harmonization was performed to synchronize samples across the three omics layers
+(transcriptomics, proteomics, and metabolomics) from the CPTAC Discovery Cohort. Missing data values
+were inputted using a median strategy via the Scikit-learn library (version 1.6.1), followed by
+Z-score standardization to normalize feature magnitudes. Pre-processing was required for utilizing
+downstream machine learning libraries. We selected the Extreme Gradient Boosting (XGBoost) library
+(version 2.0.3) as the classifier for MOmics. While Random Forest (RF) and Support Vector Machines
+(SVM) are commonly used in genomic classification, XGBoost learns optimal directions for missing
+values during tree construction. This capability allowed MOmics to handle sparse data from our
+multi-omic integration. Furthermore, XGBoost incorporates L1 (Lasso) and L2 (Ridge) regularization
+terms in its objective function. This mitigates against overfitting in datasets with high feature
+amounts and low sample sizes.
 
 ---
 
-### Model Architecture and Hyperparameters
+### Feature Selection, Training, and Optimization
 
-The XGBoost classifier was trained with the following constraints to prevent overfitting and ensure
-stable multi-modal integration:
+Raw transcriptomics, proteomics, and metabolomics datasets were preprocessed for feature selection.
+Preprocessing included addressing external noise, data sparsity and missing values using the
+SimpleImputer strategy. Z-score normalization using StandardScaler was used to ensure all features
+were evaluated fairly. Primary feature selection was completed using SelectKBest algorithm with an
+ANOVA F-value scoring function (f_classif). This process condensed the initial input space of about
+70,000 molecular features to a multi-omics signature composed of the most highly weighted features.
+To ensure model stability and compatibility with the MOmics GUI, the feature list was
+lexicographically sorted and fixed.
 
-- **Maximum tree depth:** 3 — shallow trees reduce overfitting on high-dimensional inputs
-- **Boosting rounds:** 150 (n_estimators)
-- **Loss function:** Binary logistic, with a learning rate of 0.1
-- **Feature subsampling:** colsample_bytree = 0.3 — at each tree construction, only 30% of features
-  are randomly sampled, which forces the model to draw signal from all three omics layers rather than
-  relying exclusively on the strongest single-layer features
-- **Class imbalance correction:** scale_pos_weight was set to the ratio of normal to tumor samples in
-  the training cohort (approximately 1:10 tumor-to-normal). This ensures the small normal sample group
-  receives equal weight to the larger tumor group and prevents bias toward tumor detection
+The MOmics predictive model was constructed using the XGBClassifier from the Extreme Gradient
+Boosting library. To reduce the risk of overfitting, we constrained the modeling with a maximum tree
+depth of 3 and 150 boosting rounds (n_estimators). The model was optimized using a binary logistic
+loss function with a learning rate of 0.1. To address the class imbalance in the discovery cohort,
+with an approximate 10:1 tumor-to-normal ratio, we set the scale_pos_weight based on the ratio of
+normal to tumor samples. This allowed the model to treat the small normal sample group with the same
+importance as the larger tumor group, preventing bias towards tumor detection. Furthermore, we
+utilized colsample_bytree with the parameter set to 0.3, forcing the model to randomly subset
+features during tree construction. This parameterization allows the model to pull signatures from
+all three omics layers.
 
-Model performance was validated using stratified 3-fold cross-validation, ensuring each fold
-maintained the correct ratio of tumor and normal samples. Performance was quantified using AUROC and
-Precision-Recall AUC (PR-AUC). PR-AUC was the primary metric because it provides a more rigorous
-assessment of diagnostic reliability under class imbalance than AUROC alone.
+Model performance was validated using a stratified 3-fold cross-validation. This ensured that each
+fold maintained the proper ratio of tumor and normal samples. Performance was quantified using the
+Area Under the Receiver Operating Characteristic (AUROC) and the Precision-Recall AUC (PR-AUC).
+The PR-AUC was a definitive metric for evaluating diagnostic reliability, providing a more rigorous
+assessment of the relationship between precision and recall.
 
-A secondary XGBoost classifier was trained on individual omics layers separately to identify the top
-drivers within each layer. This ensured that the final feature importance visualisation displays a
-balanced view of transcriptomic, proteomic, and metabolic drivers rather than being dominated by
-whichever layer has the most features.
-
----
-
-### Feature Selection and Preprocessing
-
-Raw transcriptomics, proteomics, and metabolomics datasets from the CPTAC Discovery Cohort were
-preprocessed for feature selection. The initial input space comprised approximately 70,000 molecular
-features spanning all three omics layers.
-
-Preprocessing involved two sequential steps applied within each cross-validation fold to prevent
-data leakage:
-
-**1. Missing Value Imputation**
-Missing values were replaced with per-feature medians using the SimpleImputer strategy from
-Scikit-learn (version 1.6.1). Imputation parameters were calculated exclusively on training folds —
-never on validation data — to prevent distributional leakage.
-
-**2. Z-score Standardisation**
-All features were normalised to zero mean and unit variance using StandardScaler. Scaling parameters
-were also estimated from training folds only and applied to validation data, ensuring no leakage of
-scale information across the cross-validation boundary.
-
-Feature selection was performed using SelectKBest with an ANOVA F-value scoring function (f_classif),
-strictly within the cross-validation loop so that identified biomarkers were not informed by validation
-labels. This process reduced the approximately 70,000 input features to 100 multi-omics features
-representing the most discriminating molecular signals. The final feature list was lexicographically
-sorted and fixed to ensure model stability and GUI compatibility.
+While the primary model was trained on the multi-omic signature, a secondary XGBoost classifier was
+trained on the individual omic layers. This secondary classifier was implemented to identify the top
+drivers within each specific layer, ensuring that the final visualization displayed a balanced view
+of the top transcriptomic, proteomic, and metabolic drivers.
 
 ---
 
-### Leakage Controls and Reproducibility
+### Comparative Benchmarking and Specificity Stress Testing
 
-Leakage controls were applied at three stages:
+To quantify the value of the multi-omics strategy, we conducted a systematic ablation study. We
+trained baseline classifiers using single-omics data (RNA-only, Protein-only, Metabolite-only) and
+compared them against the integrated MOmics model. This benchmarking confirmed a lift in diagnostic
+performance provided by multi-omics integration. The combination of biomolecular layers provided a
+more accurate differentiation of tumor and normal phenotypes compared to a single RNA layer.
 
-1. Z-score normalisation parameters were calculated exclusively on training folds
-2. The class-imbalance penalty (scale_pos_weight) was derived from the training distribution rather
-   than the full cohort
-3. Feature selection was performed strictly within cross-validation loops
-
-Random seeds were fixed throughout for all data splitting, hyperparameter optimisation, and bootstrap
-resampling to ensure fully reproducible results.
+Clinical validity was assessed through a rigorous specificity stress test. The trained model was
+applied to the external validation glioma cohort (CGGA) (n > 300). The learned feature space was
+intersected with available external data to test MOmics's ability to identify GBM in an unseen
+population. To ensure the identified biomarkers were specific to only GBM and no other cancer types,
+the model was tested against a broader cancer population. MOmics was introduced to PDAC and ccRCC
+to test its ability to differentiate against these test cancers and identify only GBM-related signals.
+This validates the high specificity of our identified multi-omics signature.
 
 ---
 
-### External Validation and Specificity Testing
+### Rigor and Reproducibility
 
-To quantify the benefit of multi-omics integration, a systematic ablation study compared single-omics
-baselines (RNA-only, Protein-only, Metabolite-only) against the full MOmics model. Multi-omics
-integration demonstrated a consistent lift in diagnostic performance over any single-layer approach.
+To ensure reproducible results, random seeds were fixed throughout the analysis: a consistent seed
+was used for all data splitting, hyperparameter optimization, and bootstrap resampling. For
+single-omics processing, rigor was maintained through standardized nomenclature and stringent feature
+filtering, where noisy features were excluded based on fixed thresholds for low-expression genes,
+protein abundance value, and metabolite presence. Differential expression analyses were performed
+consistently across cohorts, with pathway enrichment standardized across all three omics layers using
+raw p-values to ensure methodological consistency.
 
-Clinical specificity was assessed by applying the trained model to two external cohorts:
+Multi-omics integration via DIABLO was performed using a correlation weight of 0.9, selected via
+internal cross-validation to prioritize overlapping biological signals across the three omics layers,
+with 20-repeat 5-fold cross-validation used to minimize classification error. The MOmics architecture
+was constrained to a maximum tree depth of 3 and 150 boosting rounds to prevent overfitting on
+high-dimensional inputs, with a fixed feature subsampling ratio to promote stable multi-modal
+integration.
 
-- **CGGA glioma cohort (n > 300)** — tested MOmics's ability to identify GBM in an unseen
-  population without retraining or threshold adjustment
-- **PDAC and ccRCC** — tested whether the model would incorrectly fire on unrelated cancer types,
-  validating that the identified signature is specific to GBM and not a generic cancer signal
+Leakage controls were implemented at multiple stages: (1) Z-score normalization parameters were
+calculated exclusively on training folds to prevent distributional leakage, (2) the scale-penalty for
+class variance was taken from the training distribution rather than post-hoc tuning, and (3) feature
+selection was performed strictly within cross-validation loops to ensure identified biomarkers were
+not informed by validation labels.
 
-All external evaluation used fully locked protocols: no model retraining, no hyperparameter
-recalibration, and no decision-threshold adjustment. Model weights and the deterministically ordered
-feature signature derived from the CPTAC discovery cohort were applied unchanged to all external
-populations.
+External evaluation on the CGGA, PDAC, and ccRCC cohorts was performed using fully locked protocols,
+with no model retraining, hyperparameter recalibration, or decision-threshold adjustment. Model
+weights and deterministically ordered feature signatures derived from the discovery cohort were
+applied unchanged to all external and stress-test populations. Performance benchmarking was conducted
+using an identical methodology for single-omics baselines to isolate the performance gains due to
+multi-omic integration.
 
 ---
 
@@ -392,4 +387,16 @@ The current model exhibits a tendency toward polarised outputs — scores cluste
 low-risk patients and near 0.8 for high-risk patients. This reflects the decision boundary structure
 learned from the training data and is consistent with a model that has identified strong discriminating
 features (particularly LINC02084 expression), rather than a calibration artefact.
+
+---
+
+### GUI
+
+MOmics GUI is a free-access web application allowing users to interact with the model and generate
+patient-specific diagnostic predictions. The GUI requires input data in a standard CSV or Excel format
+using standardized feature names (e.g., Gene Symbols or HMDB IDs) labeled as 'prot,' 'rna,' and
+'met.' Users must provide raw abundance scores. The GUI allows for both manual entry of single samples
+and bulk analysis with the use of a downloadable template. To maintain model alignment, any
+non-specified features are automatically filled with a value of 0.00. The GUI also contains
+documentation, a user demo, and a user analysis to support the user.
 """
