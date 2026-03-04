@@ -9,7 +9,7 @@ from PIL import Image
 from docs import OVERVIEW, GUI_GUIDE, MODEL_ARCH
 
 # --- Page Configuration ---
-st.set_page_config(page_title="MOmics-ML", layout="wide", page_icon="🧬")
+st.set_page_config(page_title="MOmics", layout="wide", page_icon="🧬")
 
 # --- Custom CSS for Blue Theme ---
 st.markdown("""
@@ -396,11 +396,11 @@ def render_dashboard(results, mode="manual", key_prefix="", patient_labels=None)
         st.dataframe(patient_all_markers, use_container_width=True, hide_index=True)
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("MOmics-ML")
+st.sidebar.title("MOmics")
 st.sidebar.markdown("---")
 page = st.sidebar.radio("Navigation", ["Home", "Documentation", "User Analysis", "Demo Walkthrough"])
 
-st.title("MOmics-ML | GBM Clinical Diagnostic Suite")
+st.title("MOmics | GBM Clinical Diagnostic Suite")
 
 # ============================================================================
 # HOME PAGE
@@ -411,7 +411,7 @@ if page == "Home":
         st.image(logo, use_container_width=True)
     except:
         st.info("Logo image not found. Please ensure 'logo.png' is in the root directory.")
-    st.markdown("<h1 style='text-align: center;'>MOmics-ML</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>MOmics</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>GBM Clinical Diagnostic Suite</h3>", unsafe_allow_html=True)
 
 # ============================================================================
@@ -666,4 +666,5 @@ elif page == "Demo Walkthrough":
         for key in keys_to_clear:
             del st.session_state[key]
         st.rerun()
+
 
