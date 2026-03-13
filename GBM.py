@@ -67,7 +67,16 @@ st.markdown("""
         background-color: #fff3cd;
         border-left-color: #f39c12;
     }
-    /* Global font size override — excludes h1/h2/h3 titles */
+    /* Subtitles / subheaders — mid-size between title and body */
+    h2, h3, h4,
+    [data-testid="stHeadingWithActionElements"] h2,
+    [data-testid="stHeadingWithActionElements"] h3,
+    [data-testid="stHeadingWithActionElements"] h4,
+    .stSubheader {
+        font-size: 16px !important;
+    }
+
+    /* Global font size override — excludes h1 title */
     p, li, label, .stMarkdown p, .stMarkdown li,
     [data-testid="stText"], [data-testid="stMetricLabel"],
     [data-testid="stMetricValue"], .stDataFrame,
